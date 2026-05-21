@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Phil's Workouts" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Phil's Workouts</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #0f172a;
+      --surface:  #1e293b;
+      --surface2: #273549;
+      --accent:   #38bdf8;
+      --accent2:  #818cf8;
+      --red:      #f87171;
+      --green:    #4ade80;
+      --yellow:   #fbbf24;
+      --text:     #f1f5f9;
+      --muted:    #94a3b8;
+      --radius:   14px;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100dvh;
+      padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--surface);
+      padding: 16px 20px 12px;
+      padding-top: calc(16px + env(safe-area-inset-top, 0px));
+      position: sticky; top: 0; z-index: 10;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    header h1 { font-size: 1.1rem; font-weight: 700; color: var(--accent); }
+    header p   { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── BOTTOM NAV ── */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--surface); border-top: 1px solid rgba(255,255,255,.06);
+      display: flex; padding-bottom: env(safe-area-inset-bottom, 0px); z-index: 15;
+    }
+    .nav-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      gap: 3px; padding: 10px 0; cursor: pointer; background: none; border: none;
+      color: var(--muted); font-size: .65rem; font-weight: 600;
+      -webkit-tap-highlight-color: transparent; transition: color .15s;
+    }
+    .nav-btn svg { width: 20px; height: 20px; }
+    .nav-btn.active { color: var(--accent); }
+
+    /* ── DAY TABS ── */
+    .day-tabs {
+      display: flex; overflow-x: auto; gap: 8px; padding: 14px 16px;
+      scrollbar-width: none; border-bottom: 1px solid rgba(255,255,255,.06);
+      background: var(--surface);
+    }
+    .day-tabs::-webkit-scrollbar { display: none; }
+    .day-tab {
+      flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
+      gap: 2px; background: var(--surface2); border: 2px solid transparent;
+      border-radius: 12px; padding: 8px 12px; cursor: pointer; transition: all .15s;
+      min-width: 52px; text-align: center;
+    }
+    .day-tab .abbr { font-size: .65rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+    .day-tab .num  { font-size: 1.05rem; font-weight: 700; }
+    .day-tab.today  { border-color: var(--accent); background: rgba(56,189,248,.1); }
+    .day-tab.today .num { color: var(--accent); }
+    .day-tab.active { border-color: var(--accent2); background: rgba(129,140,248,.12); }
+    .day-tab.active .num { color: var(--accent2); }
+
+    /* ── SCREENS ── */
+    .screen { display: none; }
+    .screen.visible { display: block; }
+
+    /* ── WORKOUT ── */
+    .workout-wrap { padding: 16px; }
+    .day-badge { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .day-badge .label {
+      font-size: .7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; padding: 4px 10px; border-radius: 20px;
+    }
+    .badge-lift    { background: rgba(56,189,248,.15); color: var(--accent); }
+    .badge-cardio  { background: rgba(74,222,128,.15); color: var(--green); }
+    .badge-recover { background: rgba(251,191,36,.15); color: var(--yellow); }
+    .day-title    { font-size: 1.4rem; font-weight: 800; margin-bottom: 4px; }
+    .day-subtitle { font-size: .85rem; color: var(--muted); margin-bottom: 18px; }
+
+    .exercise-list { display: flex; flex-direction: column; gap: 10px; }
+    .ex-card {
+      background: var(--surface); border-radius: var(--radius);
+      overflow: hidden; border: 1px solid rgba(255,255,255,.06);
+    }
+    .ex-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent; gap: 10px;
+    }
+    .ex-header:active { background: rgba(255,255,255,.03); }
+    .ex-left { flex: 1; min-width: 0; }
+    .ex-name { font-size: .95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ex-sets { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+    .ex-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .guide-btn {
+      display: inline-flex; align-items: center; gap: 5px; font-size: .7rem; font-weight: 600;
+      color: var(--accent); text-decoration: none; background: rgba(56,189,248,.1);
+      padding: 5px 10px; border-radius: 20px; white-space: nowrap; transition: background .15s;
+    }
+    .guide-btn:active { background: rgba(56,189,248,.2); }
+    .guide-btn svg { width: 11px; height: 11px; flex-shrink: 0; }
+    .chevron { color: var(--muted); transition: transform .2s; flex-shrink: 0; }
+    .ex-card.open .chevron { transform: rotate(180deg); }
+
+    /* ── SET TRACKER ── */
+    .set-tracker {
+      padding: 0 16px 14px; display: none; flex-direction: column;
+      gap: 8px; border-top: 1px solid rgba(255,255,255,.06); padding-top: 12px;
+    }
+    .ex-card.open .set-tracker { display: flex; }
+    .set-row { display: flex; align-items: center; gap: 10px; }
+    .set-num { font-size: .7rem; font-weight: 700; color: var(--muted); width: 36px; text-transform: uppercase; }
+    .set-inputs { display: flex; gap: 8px; flex: 1; }
+    .set-inputs input {
+      flex: 1; background: var(--surface2); border: 1px solid rgba(255,255,255,.08);
+      border-radius: 8px; color: var(--text); font-size: .9rem; font-weight: 600;
+      text-align: center; padding: 8px 4px; -webkit-appearance: none; outline: none;
+    }
+    .set-inputs input:focus { border-color: var(--accent2); }
+    .set-inputs input::placeholder { color: rgba(148,163,184,.4); font-weight: 400; }
+    .input-label { font-size: .65rem; color: var(--muted); text-align: center; margin-top: 2px; }
+    .set-done-btn {
+      width: 36px; height: 36px; border-radius: 50%; border: 2px solid rgba(255,255,255,.1);
+      background: transparent; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; transition: all .15s; -webkit-tap-highlight-color: transparent;
+    }
+    .set-done-btn svg { width: 16px; height: 16px; color: var(--muted); }
+    .set-done-btn.done { background: var(--green); border-color: var(--green); }
+    .set-done-btn.done svg { color: #0f172a; }
+
+    /* ── INFO CARDS ── */
+    .info-card {
+      background: var(--surface); border-radius: var(--radius); padding: 16px;
+      border: 1px solid rgba(255,255,255,.06); display: flex; flex-direction: column; gap: 10px;
+    }
+    .info-card .item { display: flex; align-items: flex-start; gap: 12px; }
+    .info-card .icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .info-card .item-text strong { font-size: .9rem; display: block; }
+    .info-card .item-text span   { font-size: .8rem; color: var(--muted); }
+
+    /* ── PROGRESS BAR ── */
+    .progress-wrap { margin-bottom: 16px; }
+    .progress-bar-bg { background: var(--surface2); border-radius: 100px; height: 6px; overflow: hidden; }
+    .progress-bar-fill { background: linear-gradient(90deg, var(--accent2), var(--accent)); height: 100%; border-radius: 100px; transition: width .3s ease; }
+    .progress-label { font-size: .72rem; color: var(--muted); margin-top: 5px; text-align: right; }
+
+    /* ── REST TIMER ── */
+    .timer-bar {
+      position: fixed; bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+      left: 50%; transform: translateX(-50%);
+      background: var(--surface); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 100px; padding: 10px 20px; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4); z-index: 20; opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .timer-bar.visible { opacity: 1; pointer-events: all; }
+    .timer-bar .time-display { font-size: 1.1rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent); min-width: 40px; text-align: center; }
+    .timer-bar .timer-label { font-size: .75rem; color: var(--muted); }
+    .timer-bar .cancel-btn  { font-size: .75rem; color: var(--red); cursor: pointer; padding: 4px 8px; }
+
+    /* ── PROGRESS SCREEN ── */
+    .progress-screen { padding: 16px; }
+    .section-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
+    .ex-picker-wrap { position: relative; margin-bottom: 20px; }
+    .ex-picker {
+      width: 100%; background: var(--surface); border: 1px solid rgba(255,255,255,.1);
+      border-radius: var(--radius); color: var(--text); font-size: .95rem;
+      padding: 12px 16px; appearance: none; -webkit-appearance: none; outline: none;
+    }
+    .ex-picker-arrow { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); }
+    .chart-card {
+      background: var(--surface); border-radius: var(--radius); padding: 16px;
+      border: 1px solid rgba(255,255,255,.06); margin-bottom: 20px;
+    }
+    .chart-card .chart-title { font-size: .85rem; font-weight: 700; margin-bottom: 12px; color: var(--muted); }
+    .chart-canvas-wrap { position: relative; height: 180px; }
+    canvas { width: 100% !important; }
+    .log-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    .log-table th { color: var(--muted); font-weight: 600; text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .log-table td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,.04); }
+    .log-table tr:last-child td { border-bottom: none; }
+    .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; font-size: .9rem; line-height: 1.6; }
+
+    /* ── SETTINGS SCREEN ── */
+    .settings-screen { padding: 16px; }
+    .settings-card {
+      background: var(--surface); border-radius: var(--radius); padding: 20px;
+      border: 1px solid rgba(255,255,255,.06); margin-bottom: 16px;
+    }
+    .settings-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+    .settings-card p  { font-size: .82rem; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+    .settings-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      background: var(--surface2); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px; color: var(--text); font-size: .85rem; font-weight: 600;
+      padding: 12px 20px; width: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s;
+    }
+    .settings-btn:active { background: rgba(255,255,255,.08); }
+    .settings-btn.danger { color: var(--red); border-color: rgba(248,113,113,.2); }
+    .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: .82rem; color: var(--muted); }
+    .stat-value { font-size: .9rem; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>💪 Phil's Workouts</h1>
+    <p id="headerDate">Loading…</p>
+  </div>
+</header>
+
+<!-- Workout Screen -->
+<div class="screen visible" id="screenWorkout">
+  <div class="day-tabs" id="dayTabs"></div>
+  <div class="workout-wrap" id="workoutWrap"></div>
+</div>
+
+<!-- Progress Screen -->
+<div class="screen" id="screenProgress">
+  <div class="progress-screen">
+    <p class="section-title">Exercise Progress</p>
+    <div class="ex-picker-wrap">
+      <select class="ex-picker" id="exPicker" onchange="renderProgressChart()"></select>
+      <svg class="ex-picker-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title" id="chartTitle">Max weight over time</div>
+      <div class="chart-canvas-wrap"><canvas id="progressChart"></canvas></div>
+    </div>
+    <p class="section-title">Recent Sets</p>
+    <div id="logTableWrap"></div>
+  </div>
+</div>
+
+<!-- Settings Screen -->
+<div class="screen" id="screenSettings">
+  <div class="settings-screen">
+    <div class="settings-card">
+      <h3>📊 Your Stats</h3>
+      <p>Data saved on this device.</p>
+      <div id="statsWrap"></div>
+    </div>
+    <div class="settings-card">
+      <h3>📤 Export Data</h3>
+      <p>Download all your logged sets as a CSV file you can open in Excel or Google Sheets.</p>
+      <button class="settings-btn" onclick="exportCSV()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download CSV
+      </button>
+    </div>
+    <div class="settings-card">
+      <h3>🗑️ Clear All Data</h3>
+      <p>Permanently removes all logged workout data from this device.</p>
+      <button class="settings-btn danger" onclick="clearData()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        Clear All Data
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="navWorkout" onclick="switchScreen('workout')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5h11M6.5 17.5h11M3 12h18M8 3v4M16 3v4M8 17v4M16 17v4"/></svg>
+    Workout
+  </button>
+  <button class="nav-btn" id="navProgress" onclick="switchScreen('progress')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Progress
+  </button>
+  <button class="nav-btn" id="navSettings" onclick="switchScreen('settings')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Settings
+  </button>
+</nav>
+
+<!-- Rest Timer -->
+<div class="timer-bar" id="timerBar">
+  <span class="timer-label">Rest</span>
+  <span class="time-display" id="timerDisplay">1:30</span>
+  <span class="cancel-btn" id="cancelTimer">✕</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ─── WORKOUT DATA ─────────────────────────────────────────────────────────────
+const GUIDE_BASE = "https://www.simplyfitness.com/pages/workout-exercise-guides";
+function guideUrl(name) {
+  return GUIDE_BASE + "#" + name.toLowerCase().replace(/[()\/]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').replace(/-$/,'');
+}
+
+const DAYS = [
+  { key:"mon", name:"Monday",    type:"lift",    focus:"Upper A — Push",
+    exercises:[
+      {name:"Barbell Bench Press",    sets:3, reps:8 },
+      {name:"DB Overhead Press",      sets:3, reps:10},
+      {name:"Incline DB Press",       sets:3, reps:10},
+      {name:"Cable Lateral Raise",    sets:3, reps:15},
+      {name:"Tricep Pushdown",        sets:3, reps:12},
+    ]},
+  { key:"tue", name:"Tuesday",   type:"lift",    focus:"Lower A — Squat",
+    exercises:[
+      {name:"Barbell Back Squat",     sets:4, reps:8 },
+      {name:"Seated Leg Curl",        sets:3, reps:12},
+      {name:"Walking Lunges",         sets:3, reps:"12 each"},
+      {name:"Leg Press",              sets:3, reps:12},
+      {name:"Standing Calf Raise",    sets:3, reps:15},
+    ]},
+  { key:"wed", name:"Wednesday", type:"recover", focus:"Active Recovery",
+    items:[
+      {icon:"🚶", title:"Incline Treadmill Walk",   detail:"25 min"},
+      {icon:"🦵", title:"Hip Flexor Stretch",       detail:"2 × 60s each side"},
+      {icon:"🌀", title:"Thoracic Spine Rotation",  detail:"2 × 10 each side"},
+      {icon:"🍑", title:"Hamstring/Glute Mobility", detail:"2 min each side"},
+    ]},
+  { key:"thu", name:"Thursday",  type:"lift",    focus:"Upper B — Pull",
+    exercises:[
+      {name:"Seated Cable Row",       sets:4, reps:10},
+      {name:"Lat Pulldown",           sets:3, reps:10},
+      {name:"Single-Arm DB Row",      sets:3, reps:"10 each"},
+      {name:"Face Pulls",             sets:3, reps:15},
+      {name:"Barbell Curl",           sets:3, reps:12},
+    ]},
+  { key:"fri", name:"Friday",    type:"lift",    focus:"Lower B — Hinge",
+    exercises:[
+      {name:"Cable Pull-Through",     sets:4, reps:12},
+      {name:"Back Extension",         sets:3, reps:12},
+      {name:"Hip Thrust",             sets:3, reps:12},
+      {name:"Bulgarian Split Squat",  sets:3, reps:"10 each"},
+      {name:"Lying Leg Curl",         sets:3, reps:12},
+    ]},
+  { key:"sat", name:"Saturday",  type:"cardio",  focus:"Home Cardio",
+    items:[{icon:"🏃", title:"Walk or Jog", detail:"30–45 min · Target HR 130–150 bpm"}]},
+  { key:"sun", name:"Sunday",    type:"recover", focus:"Active Recovery",
+    items:[
+      {icon:"🚶", title:"Easy Walk",  detail:"20–30 min"},
+      {icon:"🧘", title:"Stretching", detail:"10 min"},
+    ]},
+];
+
+const ALL_EXERCISES = DAYS.filter(d=>d.type==="lift").flatMap(d=>d.exercises.map(e=>e.name));
+
+// ─── LOCAL STORAGE ────────────────────────────────────────────────────────────
+function getLog() {
+  try { return JSON.parse(localStorage.getItem("workoutLog") || "[]"); } catch(e) { return []; }
+}
+function saveLog(log) { localStorage.setItem("workoutLog", JSON.stringify(log)); }
+function addEntry(entry) {
+  const log = getLog();
+  const idx = log.findIndex(e => e.date===entry.date && e.exercise===entry.exercise && e.setNum===entry.setNum);
+  if (idx >= 0) log[idx] = entry; else log.push(entry);
+  saveLog(log);
+}
+function todayStr() { return new Date().toISOString().slice(0,10); }
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+let todayIdx = 0;
+window.addEventListener("DOMContentLoaded", () => {
+  const map = {1:0,2:1,3:2,4:3,5:4,6:5,0:6};
+  todayIdx = map[new Date().getDay()];
+  document.getElementById("headerDate").textContent =
+    new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+  buildTabs();
+  renderDay(todayIdx);
+  buildExPicker();
+});
+
+// ─── NAV ──────────────────────────────────────────────────────────────────────
+function switchScreen(name) {
+  ["workout","progress","settings"].forEach(s => {
+    document.getElementById("screen"+cap(s)).classList.toggle("visible", s===name);
+    document.getElementById("nav"+cap(s)).classList.toggle("active", s===name);
+  });
+  if (name === "progress") renderProgressChart();
+  if (name === "settings") renderStats();
+}
+function cap(s) { return s.charAt(0).toUpperCase()+s.slice(1); }
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function buildTabs() {
+  const wrap = document.getElementById("dayTabs");
+  DAYS.forEach((d,i) => {
+    const btn = document.createElement("button");
+    btn.className = "day-tab" + (i===todayIdx?" today":"");
+    btn.dataset.idx = i;
+    btn.innerHTML = `<span class="abbr">${d.key}</span><span class="num">${d.name.slice(0,3)}</span>`;
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".day-tab").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      renderDay(i);
+    });
+    wrap.appendChild(btn);
+  });
+  const t = wrap.querySelector(`[data-idx="${todayIdx}"]`);
+  if (t) { t.classList.add("active"); t.scrollIntoView({inline:"center",behavior:"smooth"}); }
+}
+
+// ─── RENDER DAY ───────────────────────────────────────────────────────────────
+function renderDay(idx) {
+  const day = DAYS[idx];
+  const wrap = document.getElementById("workoutWrap");
+  wrap.innerHTML = "";
+  const badgeClass = day.type==="lift"?"badge-lift":day.type==="cardio"?"badge-cardio":"badge-recover";
+  const badgeLabel = day.type==="lift"?"🏋️ Lift":day.type==="cardio"?"🏃 Cardio":"🧘 Recovery";
+  wrap.innerHTML = `
+    <div class="day-badge"><span class="label ${badgeClass}">${badgeLabel}</span></div>
+    <div class="day-title">${day.name}</div>
+    <div class="day-subtitle">${day.focus}</div>`;
+
+  if (day.type === "lift") renderLiftDay(wrap, day, idx);
+  else renderInfoDay(wrap, day);
+}
+
+function renderLiftDay(wrap, day, dayIdx) {
+  const total = day.exercises.reduce((a,e)=>a+e.sets,0);
+  const pw = document.createElement("div");
+  pw.className = "progress-wrap"; pw.id = `pg-${dayIdx}`;
+  pw.innerHTML = `<div class="progress-bar-bg"><div class="progress-bar-fill" id="pf-${dayIdx}" style="width:0%"></div></div>
+    <div class="progress-label" id="pl-${dayIdx}">0 / ${total} sets</div>`;
+  wrap.appendChild(pw);
+
+  const list = document.createElement("div");
+  list.className = "exercise-list";
+  day.exercises.forEach((ex, ei) => {
+    const card = document.createElement("div");
+    card.className = "ex-card"; card.id = `ex-${dayIdx}-${ei}`;
+
+    let setRows = `<div style="display:flex;gap:4px;margin-bottom:6px;">
+      <div style="width:36px"></div>
+      <div class="set-inputs" style="gap:8px;">
+        <div><div style="height:8px"></div><div class="input-label">Weight (lbs)</div></div>
+        <div><div style="height:8px"></div><div class="input-label">Reps done</div></div>
+      </div><div style="width:36px"></div></div>`;
+
+    for (let s=0; s<ex.sets; s++) {
+      const saved = getLog().find(e=>e.date===todayStr()&&e.exercise===ex.name&&e.setNum===s+1);
+      setRows += `<div class="set-row">
+        <span class="set-num">Set ${s+1}</span>
+        <div class="set-inputs">
+          <input type="number" inputmode="decimal" placeholder="lbs" id="w-${dayIdx}-${ei}-${s}" value="${saved&&saved.weight?saved.weight:''}"/>
+          <input type="number" inputmode="numeric" placeholder="${typeof ex.reps==='string'?ex.reps.split(' ')[0]:ex.reps}" id="r-${dayIdx}-${ei}-${s}" value="${saved&&saved.reps?saved.reps:''}"/>
+        </div>
+        <button class="set-done-btn${saved?' done':''}" id="done-${dayIdx}-${ei}-${s}" onclick="toggleSet(${dayIdx},${ei},${s})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button></div>`;
+    }
+
+    card.innerHTML = `
+      <div class="ex-header" onclick="toggleCard('ex-${dayIdx}-${ei}')">
+        <div class="ex-left">
+          <div class="ex-name">${ex.name}</div>
+          <div class="ex-sets">${ex.sets} sets × ${ex.reps} reps</div>
+        </div>
+        <div class="ex-right">
+          <a class="guide-btn" href="${guideUrl(ex.name)}" target="_blank" onclick="event.stopPropagation()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Guide
+          </a>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+      <div class="set-tracker">${setRows}</div>`;
+    list.appendChild(card);
+  });
+  wrap.appendChild(list);
+  updateProgress(dayIdx);
+}
+
+function renderInfoDay(wrap, day) {
+  const card = document.createElement("div"); card.className = "info-card";
+  const colors = ["#0ea5e9","#a78bfa","#34d399","#fb923c"];
+  day.items.forEach((item,i) => {
+    const div = document.createElement("div"); div.className = "item";
+    div.innerHTML = `<div class="icon" style="background:${colors[i%colors.length]}22;color:${colors[i%colors.length]}">${item.icon}</div>
+      <div class="item-text"><strong>${item.title}</strong><span>${item.detail}</span></div>`;
+    card.appendChild(div);
+  });
+  wrap.appendChild(card);
+}
+
+// ─── SET TRACKING ─────────────────────────────────────────────────────────────
+function toggleCard(id) { document.getElementById(id)?.classList.toggle("open"); }
+
+function toggleSet(dayIdx, ei, s) {
+  const btn = document.getElementById(`done-${dayIdx}-${ei}-${s}`);
+  const done = btn.classList.toggle("done");
+  const ex = DAYS[dayIdx].exercises[ei];
+  if (done) {
+    const weight = parseFloat(document.getElementById(`w-${dayIdx}-${ei}-${s}`).value) || null;
+    const reps   = parseInt(document.getElementById(`r-${dayIdx}-${ei}-${s}`).value)   || null;
+    addEntry({ date:todayStr(), dayName:DAYS[dayIdx].name, exercise:ex.name, setNum:s+1, weight, reps, ts:new Date().toISOString() });
+    startRestTimer();
+  }
+  updateProgress(dayIdx);
+}
+
+function updateProgress(dayIdx) {
+  const day = DAYS[dayIdx];
+  if (!day || day.type !== "lift") return;
+  const total = day.exercises.reduce((a,e)=>a+e.sets,0);
+  let done = 0;
+  day.exercises.forEach((ex,ei) => {
+    for (let s=0;s<ex.sets;s++) if (document.getElementById(`done-${dayIdx}-${ei}-${s}`)?.classList.contains("done")) done++;
+  });
+  const pct = Math.round(done/total*100);
+  const f = document.getElementById(`pf-${dayIdx}`);
+  const l = document.getElementById(`pl-${dayIdx}`);
+  if (f) f.style.width = pct+"%";
+  if (l) l.textContent = `${done} / ${total} sets`;
+}
+
+// ─── REST TIMER ───────────────────────────────────────────────────────────────
+let timerInterval=null, timerSecs=0;
+function startRestTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerSecs = 90;
+  const bar=document.getElementById("timerBar"), disp=document.getElementById("timerDisplay");
+  bar.classList.add("visible");
+  updateTimerDisplay(disp, timerSecs);
+  timerInterval = setInterval(()=>{
+    timerSecs--;
+    updateTimerDisplay(disp, timerSecs);
+    if (timerSecs<=0) {
+      clearInterval(timerInterval); timerInterval=null;
+      bar.classList.remove("visible");
+      if (navigator.vibrate) navigator.vibrate([200,100,200]);
+    }
+  },1000);
+}
+function updateTimerDisplay(el,s) { el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; }
+document.getElementById("cancelTimer").addEventListener("click",()=>{
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
+  document.getElementById("timerBar").classList.remove("visible");
+});
+
+// ─── PROGRESS CHART ───────────────────────────────────────────────────────────
+let chartInstance = null;
+function buildExPicker() {
+  const sel = document.getElementById("exPicker");
+  ALL_EXERCISES.forEach(name => {
+    const o = document.createElement("option"); o.value=o.textContent=name; sel.appendChild(o);
+  });
+}
+function renderProgressChart() {
+  const exercise = document.getElementById("exPicker").value;
+  const log = getLog().filter(e=>e.exercise===exercise&&e.weight);
+  const byDate = {};
+  log.forEach(e=>{ if(!byDate[e.date]||e.weight>byDate[e.date]) byDate[e.date]=e.weight; });
+  const labels = Object.keys(byDate).sort();
+  const data   = labels.map(d=>byDate[d]);
+  const xLabels = labels.map(d=>{ const [,m,day]=d.split("-"); return `${m}/${day}`; });
+  document.getElementById("chartTitle").textContent = `${exercise} — Max weight (lbs)`;
+  if (chartInstance) chartInstance.destroy();
+  if (!labels.length) {
+    document.getElementById("logTableWrap").innerHTML = `<p class="empty-state">No sets logged yet for this exercise.<br>Complete some sets on the Workout tab to start tracking.</p>`;
+    chartInstance = null; return;
+  }
+  chartInstance = new Chart(document.getElementById("progressChart").getContext("2d"),{
+    type:"line",
+    data:{ labels:xLabels, datasets:[{ data, borderColor:"#38bdf8", backgroundColor:"rgba(56,189,248,.1)", borderWidth:2.5, pointBackgroundColor:"#38bdf8", pointRadius:5, tension:0.3, fill:true }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{ticks:{color:"#94a3b8",font:{size:11}},grid:{color:"rgba(255,255,255,.05)"}},
+               y:{ticks:{color:"#94a3b8",font:{size:11}},grid:{color:"rgba(255,255,255,.05)"},beginAtZero:false}}}
+  });
+  const recent = getLog().filter(e=>e.exercise===exercise).sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,30);
+  document.getElementById("logTableWrap").innerHTML = `<table class="log-table">
+    <thead><tr><th>Date</th><th>Set</th><th>Weight</th><th>Reps</th></tr></thead>
+    <tbody>${recent.map(e=>`<tr><td>${e.date}</td><td>Set ${e.setNum}</td><td>${e.weight?e.weight+"lbs":"—"}</td><td>${e.reps||"—"}</td></tr>`).join("")}</tbody>
+  </table>`;
+}
+
+// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+function renderStats() {
+  const log = getLog();
+  const days  = new Set(log.map(e=>e.date)).size;
+  const total = log.length;
+  const exs   = new Set(log.map(e=>e.exercise)).size;
+  const first = log.length ? log.reduce((a,b)=>a.ts<b.ts?a:b).date : "—";
+  document.getElementById("statsWrap").innerHTML = `
+    <div class="stat-row"><span class="stat-label">Workout days logged</span><span class="stat-value">${days}</span></div>
+    <div class="stat-row"><span class="stat-label">Total sets logged</span><span class="stat-value">${total}</span></div>
+    <div class="stat-row"><span class="stat-label">Exercises tracked</span><span class="stat-value">${exs}</span></div>
+    <div class="stat-row"><span class="stat-label">First session</span><span class="stat-value">${first}</span></div>`;
+}
+
+function exportCSV() {
+  const log = getLog();
+  if (!log.length) { alert("No data to export yet."); return; }
+  const rows = [["Date","Day","Exercise","Set","Weight (lbs)","Reps","Timestamp"],
+    ...log.map(e=>[e.date,e.dayName,e.exercise,e.setNum,e.weight||"",e.reps||"",e.ts])];
+  const csv = rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+  a.download = `workouts-${todayStr()}.csv`;
+  a.click();
+}
+
+function clearData() {
+  if (confirm("Delete all logged workout data? This cannot be undone.")) {
+    localStorage.removeItem("workoutLog");
+    alert("Data cleared.");
+    renderStats();
+  }
+}
+</script>
+</body>
+</html>
